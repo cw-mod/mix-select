@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CatWar: быстрое выделение предметов для смешивания</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #f3e4c8;
+      background: #1c140c;
+    }
+    main {
+      max-width: 40rem;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 1.6rem;
+      line-height: 1.25;
+    }
+    h2 {
+      margin: 28px 0 10px;
+      font-size: 1.15rem;
+    }
+    p {
+      margin: 0 0 12px;
+    }
+    .downloads {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 8px 0 8px;
+    }
+    .download {
+      display: inline-block;
+      padding: 12px 18px;
+      font-weight: 700;
+      color: #1c140c;
+      text-decoration: none;
+      background: #f3e4c8;
+      border-radius: 8px;
+    }
+    .download:hover {
+      background: #fff;
+    }
+    .note {
+      font-size: 0.92rem;
+      opacity: 0.88;
+    }
+    ol, ul {
+      margin: 0 0 12px;
+      padding-left: 1.2em;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+    code, kbd {
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>CatWar: быстрое выделение предметов для смешивания</h1>
+    <p>Быстрое выделение предметов во рту на <strong>catwar.su</strong> и <strong>catwar.net</strong>: не нужно кликать по каждому предмету для смешивания.</p>
+    <p class="downloads">
+      <a class="download" href="./mix-select.user.js">Скачать юзерскрипт</a>
+    </p>
+    <p class="note">Версия 1.0.0. Юзерскрипт для Tampermonkey. Автообновление: <a href="./mix-select.meta.js">mix-select.meta.js</a>.</p>
+
+    <h2>Установка</h2>
+    <ol>
+      <li>Установите <a href="https://www.tampermonkey.net/" rel="noopener">Tampermonkey</a>.</li>
+      <li>Нажмите «Скачать юзерскрипт» — Tampermonkey предложит установку.</li>
+      <li>Откройте игровую <code>https://catwar.su/cw3</code> или <code>https://catwar.net/cw3</code>.</li>
+      <li>После установки скрипт сам обновляется с этой же страницы GitHub Pages.</li>
+    </ol>
+
+    <h2>Что делает</h2>
+    <ul>
+      <li><strong>✚ Выбрать всё</strong> — кнопка у блока «Смешивать»: входит в режим смешивания и выделяет все предметы сразу.</li>
+      <li><strong>✖ Снять</strong> — снимает выделение со всех предметов.</li>
+      <li><strong><kbd>Ctrl</kbd>+клик</strong> (<kbd>⌘</kbd> на Mac) по предмету — выделить все предметы этого же типа.</li>
+    </ul>
+    <p class="note">Само смешивание скрипт не подтверждает: после выделения вы сами нажимаете игровую кнопку «Смешать». Заблокированные предметы не выделяются.</p>
+  </main>
+</body>
+</html>
