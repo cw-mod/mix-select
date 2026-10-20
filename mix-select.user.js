@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CatWar: быстрое выделение предметов для смешивания
 // @namespace    catwar-mix-select
-// @version      1.0.0
+// @version      1.0.1
 // @description  Кнопки «Выбрать всё»/«Снять» у рта и Ctrl+клик (⌘ на Mac) по предмету — выделить все предметы этого типа для смешивания, без клика по каждому.
 // @author       local
 // @match        https://catwar.su/cw3
@@ -21,21 +21,26 @@
 /*
  * Быстрое выделение предметов во рту для смешивания.
  *
- * Как работает игра: выделение для смешивания — это Vue-флаг isActive у каждого
- * предмета (vm.item.list[i].isActive), в DOM он отражается классом .active_thing.
- * Само смешивание (vm.item.mix) читает isActive из состояния, поэтому скрипт
- * меняет состояние напрямую, а DOM Vue обновляет сам. Античит (isTrusted) на
- * предметы/смешивание не распространяется (только на боевые действия).
+ * v1.0.1 — фикс «улетания» UI смешивания:
+ *   - панель больше НЕ вставляется внутрь Vue-контейнера #tr_mouth > td
+ *     (чужой узел между v-if-нодами #mix/#item_multi ломал патчинг Vue
+ *     при входе/выходе из режима смешивания); теперь она в body,
+ *     position:fixed, позиция трекается по #tr_mouth (паттерн mouth-tools);
+ *   - выделение только через игровые методы: item.showActions(it, true) и
+ *     item.hideActions() — без прямой записи isActive (не остаётся
+ *     полусостояний у меню #thdey).
  *
- * Скрипт НЕ жмёт «Смешать» за игрока: после выделения игрок сам подтверждает
- * игровой кнопкой. Заблокированные предметы (is_locked) не выделяются.
+ * Игра: выделение для смешивания — Vue-флаг isActive у предмета
+ * (vm.item.list[i].isActive), кнопка «Смешать» в режиме смешивания вызывает
+ * item.mix() → нативный confirm("Смешать?"). Скрипт сам mix() не вызывает.
+ * Заблокированные предметы не выделяются, коты во рту (.catrot) игнорируются.
  */
 
 (function () {
   'use strict';
 
   var BAR_ID = 'cwb-mixsel-bar';
-  var MOUNT_MS = 2000; // период проверки, что панель на месте (ре-рендеры/компакт)
+  var TRACK_MS = 1000; // трекинг позиции панели (компакт/нюх/ре-рендеры)
 
   // ------------------------------------------------------------ Vue доступ
 
@@ -46,44 +51,51 @@
   }
 
   // ------------------------------------------------------------ выделение
+  // Только через игровые методы: showActions(it, true) — toggle с сохранением
+  // остальных (как у ванильного selectAll), hideActions() — полный сброс.
 
   function mixable(it) {
-    // коты во рту — не в item.list, а заблокированные предметы смешивать нельзя
     return it && !it.isLocked;
   }
 
   function ensureMixMode(item) {
-    if (!item.mixMode) {
-      try { item.enableMixMode(); }
-      catch (e) { item.mixMode = true; } // запасной путь, если метод переименуют
-    }
+    if (item.mixMode) return;
+    try { item.enableMixMode(); }
+    catch (e) { item.mixMode = true; } // запасной путь, если метод переименуют
+  }
+
+  function select(filter) {
+    var item = getItemModule();
+    if (!item) return;
+    ensureMixMode(item); // enableMixMode() внутри сам сбросит выделение
+    item.list.forEach(function (it) {
+      if (mixable(it) && !it.isActive && filter(it)) {
+        try { item.showActions(it, true); }
+        catch (e) { it.isActive = true; } // запасной путь
+      }
+    });
   }
 
   function selectAll() {
-    var item = getItemModule();
-    if (!item) return;
-    ensureMixMode(item);
-    item.list.forEach(function (it) {
-      if (mixable(it)) it.isActive = true;
-    });
+    select(function () { return true; });
   }
 
   function selectType(type) {
-    var item = getItemModule();
-    if (!item) return;
-    ensureMixMode(item);
-    item.list.forEach(function (it) {
-      if (mixable(it) && it.type === type) it.isActive = true;
-    });
+    select(function (it) { return it.type === type; });
   }
 
   function clearSelection() {
     var item = getItemModule();
     if (!item) return;
-    item.list.forEach(function (it) { it.isActive = false; });
+    try { item.hideActions(); }
+    catch (e) {
+      item.list.forEach(function (it) { it.isActive = false; });
+    }
   }
 
   // ------------------------------------------------------------ UI панель
+  // Панель живёт в body (position:fixed) — НЕ внутри Vue-контейнеров игры.
+  // Позиция вычисляется по #tr_mouth и обновляется интервалом + scroll/resize.
 
   function makeBtn(text, title, fn) {
     var b = document.createElement('button');
@@ -99,7 +111,9 @@
   function buildBar() {
     var bar = document.createElement('div');
     bar.id = BAR_ID;
-    bar.style.cssText = 'margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;';
+    bar.style.cssText = 'position:fixed;z-index:99999;display:flex;gap:4px;' +
+      'flex-wrap:wrap;align-items:center;padding:2px;background:rgba(28,20,12,.92);' +
+      'border:1px solid rgba(243,228,200,.25);border-radius:8px;';
 
     bar.appendChild(makeBtn('✚ Выбрать всё',
       'Войти в режим смешивания и выделить все предметы',
@@ -110,20 +124,30 @@
       clearSelection));
 
     var hint = document.createElement('span');
-    hint.style.cssText = 'font-size:10px;opacity:.55;margin-left:4px;';
+    hint.style.cssText = 'font-size:10px;opacity:.55;margin:0 4px;white-space:nowrap;';
     hint.textContent = 'Ctrl+клик (⌘ на Mac) по предмету — выбрать все этого типа';
     bar.appendChild(hint);
     return bar;
   }
 
-  function mountBar() {
-    if (document.getElementById(BAR_ID)) return;
+  function positionBar(bar) {
     var td = document.querySelector('#tr_mouth > td');
-    if (!td) return; // страница ещё не готова — попробуем на следующем тике
-    var mix = td.querySelector('#mix');
-    var bar = buildBar();
-    if (mix) td.insertBefore(bar, mix.nextSibling); // сразу после блока «Смешивать»
-    else td.appendChild(bar);
+    if (!td || !td.isConnected) return;
+    var r = td.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) return; // панель рта скрыта
+    bar.style.left = r.left + 'px';
+    bar.style.top = (r.bottom + 4) + 'px';
+  }
+
+  function mountBar() {
+    var bar = document.getElementById(BAR_ID);
+    if (!bar) {
+      bar = buildBar();
+      document.body.appendChild(bar);
+    } else if (!bar.isConnected) {
+      document.body.appendChild(bar);
+    }
+    positionBar(bar);
   }
 
   // ------------------------------------------- Ctrl+клик: все этого типа
@@ -147,7 +171,15 @@
 
   function start() {
     mountBar();
-    setInterval(mountBar, MOUNT_MS); // ре-рендер/компакт/нюх — просто вернём панель
+    setInterval(mountBar, TRACK_MS);
+    window.addEventListener('scroll', function () {
+      var bar = document.getElementById(BAR_ID);
+      if (bar) positionBar(bar);
+    }, true); // capture: скроллится не window, а внутренние блоки
+    window.addEventListener('resize', function () {
+      var bar = document.getElementById(BAR_ID);
+      if (bar) positionBar(bar);
+    });
   }
 
   if (document.readyState === 'loading') {

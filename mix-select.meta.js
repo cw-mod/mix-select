@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CatWar: быстрое выделение предметов для смешивания
 // @namespace    catwar-mix-select
-// @version      1.0.0
+// @version      1.0.1
 // @description  Кнопки «Выбрать всё»/«Снять» у рта и Ctrl+клик (⌘ на Mac) по предмету — выделить все предметы этого типа для смешивания, без клика по каждому.
 // @author       local
 // @match        https://catwar.su/cw3
