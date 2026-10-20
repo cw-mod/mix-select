@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CatWar: быстрое выделение предметов для смешивания
 // @namespace    catwar-mix-select
-// @version      1.0.1
+// @version      1.0.2
 // @description  Кнопки «Выбрать всё»/«Снять» у рта и Ctrl+клик (⌘ на Mac) по предмету — выделить все предметы этого типа для смешивания, без клика по каждому.
 // @author       local
 // @match        https://catwar.su/cw3
@@ -29,6 +29,10 @@
  *   - выделение только через игровые методы: item.showActions(it, true) и
  *     item.hideActions() — без прямой записи isActive (не остаётся
  *     полусостояний у меню #thdey).
+ * v1.0.2 — фикс позиции в обычном режиме: при огромном списке рта панель
+ *   уезжала за экран (вставала ниже конца списка). Теперь позиция
+ *   ограничена вьюпортом: прилипает к низу экрана, пока панель рта видна,
+ *   и скрывается, когда рот вне экрана.
  *
  * Игра: выделение для смешивания — Vue-флаг isActive у предмета
  * (vm.item.list[i].isActive), кнопка «Смешать» в режиме смешивания вызывает
@@ -132,11 +136,23 @@
 
   function positionBar(bar) {
     var td = document.querySelector('#tr_mouth > td');
-    if (!td || !td.isConnected) return;
+    if (!td || !td.isConnected) { bar.style.visibility = 'hidden'; return; }
     var r = td.getBoundingClientRect();
-    if (r.width === 0 && r.height === 0) return; // панель рта скрыта
-    bar.style.left = r.left + 'px';
-    bar.style.top = (r.bottom + 4) + 'px';
+    var vh = window.innerHeight;
+    // панель рта не на экране (выше/ниже вьюпорта) — прячем нашу панель
+    if (r.width === 0 || r.bottom <= 0 || r.top >= vh) {
+      bar.style.visibility = 'hidden';
+      return;
+    }
+    var barH = bar.offsetHeight || 33;
+    var top = r.bottom + 4;                 // желаем: сразу под панелью рта
+    var maxTop = vh - barH - 8;             // но не ниже низа экрана
+    var minTop = Math.max(r.top + 4, 8);    // и не выше начала панели рта
+    if (top > maxTop) top = Math.max(maxTop, minTop);
+    if (top < minTop) top = minTop;
+    bar.style.left = Math.round(r.left) + 'px';
+    bar.style.top = Math.round(top) + 'px';
+    bar.style.visibility = 'visible';
   }
 
   function mountBar() {
