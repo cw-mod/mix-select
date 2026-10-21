@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CatWar: быстрое выделение предметов для смешивания
 // @namespace    catwar-mix-select
-// @version      1.1.0
+// @version      1.1.1
 // @description  Кнопки «Выбрать всё»/«В смешение»/«Снять» у рта и Ctrl+клик по предмету — выделить все предметы этого типа для смешивания, без клика по каждому.
 // @author       local
 // @match        https://catwar.su/cw3
@@ -194,12 +194,18 @@
     if (top > maxTop) top = Math.max(maxTop, minTop);
     if (top < minTop) top = minTop;
     // не наезжать на окно «Рецепт» mouth-tools (если оно видно и рядом)
+    // NB: у position:fixed элементов offsetParent всегда null — видимость
+    // проверяем через display (mouth-tools прячет классом .hidden)
     var mt = document.getElementById('cwb-mt-root');
-    if (mt && mt.offsetParent !== null) {
+    if (mt && getComputedStyle(mt).display !== 'none') {
       var m = mt.getBoundingClientRect();
       var barW = bar.offsetWidth || 520;
       var guess = { left: r.left, right: r.left + barW, top: top, bottom: top + barH };
-      if (rectsOverlap(guess, m)) top = m.bottom + 8;
+      if (rectsOverlap(guess, m)) {
+        var below = m.bottom + 8;              // попробовать под окном
+        var above = m.top - barH - 8;          // иначе — над окном
+        top = below <= maxTop ? below : Math.max(above, minTop);
+      }
     }
     bar.style.left = Math.round(r.left) + 'px';
     bar.style.top = Math.round(top) + 'px';
